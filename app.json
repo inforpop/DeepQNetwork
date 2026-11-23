@@ -1,0 +1,8 @@
+{
+  "name": "DQN Clássica vs Quântica",
+  "description": "Deep Q-Network (Aprendizado por Reforço) com dashboard Flask: Computação Clássica e Computação Quântica.",
+  "repository": "",
+  "keywords": ["python", "flask", "reinforcement-learning", "dqn", "quantum"],
+  "buildpacks": [{ "url": "heroku/python" }],
+  "formation": { "web": { "quantity": 1, "size": "basic" } }
+}

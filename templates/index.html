@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deep Q-Network · Clássica vs Quântica — Pedro Paulo Ribeiro</title>
+  <meta name="description" content="Projeto prático de Aprendizado por Reforço: Deep Q-Network clássica e quântica (circuito variacional) em Python e Flask.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ============================ CABEÇALHO ============================ -->
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">Q</div>
+    <div>
+      <h1>Deep Q-Network <span class="muted">· Aprendizado por Reforço</span></h1>
+      <p class="sub">Projeto prático em Python + Flask · Computação Clássica vs Computação Quântica</p>
+    </div>
+  </div>
+  <nav class="contacts" aria-label="Meus contatos">
+    <span class="contacts-title">📞 Meus Contatos:</span>
+    <a href="{{ c.site }}" target="_blank" rel="noopener">{{ c.site_label }}</a>
+    <span>📱 WhatsApp: <a href="{{ c.whatsapp }}" target="_blank" rel="noopener">{{ c.whatsapp_label }}</a></span>
+    <span>✉️ Email: <a href="mailto:{{ c.email }}">{{ c.email }}</a></span>
+    <span>🔗 LinkedIn: <a href="{{ c.linkedin }}" target="_blank" rel="noopener">{{ c.linkedin_label }}</a></span>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="hero-text">
+    <h2>Um agente que aprende por tentativa e erro</h2>
+    <p>A <strong>Deep Q-Network (DQN)</strong> aprende a função de valor <code>Q(s, a)</code> — a recompensa futura esperada
+      ao tomar a ação <em>a</em> no estado <em>s</em> — combinando <strong>experience replay</strong>,
+      <strong>rede-alvo</strong> e exploração <strong>ε-greedy</strong>. Aqui o mesmo algoritmo roda com dois
+      aproximadores: uma <strong>rede neural clássica</strong> e um <strong>circuito quântico variacional</strong> de 4 qubits.</p>
+    <div class="formula">Q(s,a) ← r + γ · max<sub>a'</sub> Q<sub>alvo</sub>(s', a')</div>
+  </div>
+  <figure class="hero-img">
+    <img src="{{ url_for('static', filename='img/formacao.png') }}" alt="Qualidade, Agilidade, Simplicidade — Diploma de Graduação em Ciência de Dados, Centro Universitário Maurício de Nassau (UNINASSAU)">
+    <figcaption>Qualidade · Agilidade · Simplicidade — Graduação em Ciência de Dados (UNINASSAU)</figcaption>
+  </figure>
+</section>
+
+<!-- ============================ ABAS ============================ -->
+<div class="tabs" role="tablist">
+  <button class="tab active" role="tab" data-tab="classical" aria-selected="true">🖥️ Computação Clássica</button>
+  <button class="tab" role="tab" data-tab="quantum" aria-selected="false">⚛️ Computação Quântica</button>
+</div>
+
+{% for mode in ['classical', 'quantum'] %}
+<main class="panel {% if mode == 'classical' %}active{% endif %}" id="panel-{{ mode }}" data-mode="{{ mode }}" role="tabpanel">
+  <aside class="card config">
+    {% if mode == 'classical' %}
+      <h3>Rede Neural (MLP)</h3>
+      <p class="hint">Perceptron multicamadas em NumPy puro com Adam, perda de Huber e Double DQN.</p>
+    {% else %}
+      <h3>Circuito Quântico Variacional</h3>
+      <p class="hint">4 qubits simulados (vetor de estado). Gradientes exatos pela <em>regra do deslocamento de parâmetros</em>.
+        Com só ~44 parâmetros o treino é mais instável: se não convergir, tente outra semente ou mais episódios.</p>
+    {% endif %}
+    <label>Ambiente
+      <select name="env">
+        {% if mode == 'classical' %}
+          <option value="cartpole">CartPole (equilibrar o pêndulo)</option>
+          <option value="gridworld">GridWorld 4×4 (FrozenLake)</option>
+        {% else %}
+          <option value="gridworld">GridWorld 4×4 (FrozenLake)</option>
+          <option value="cartpole">CartPole (experimental, lento)</option>
+        {% endif %}
+      </select>
+    </label>
+    <div class="grid2">
+      <label>Episódios <input type="number" name="episodes" min="10" max="1000"></label>
+      <label>Taxa de aprendizado <input type="number" name="lr" step="0.0001"></label>
+      <label>γ (desconto) <input type="number" name="gamma" step="0.01" min="0.5" max="0.999"></label>
+      <label>Decaimento ε <input type="number" name="eps_decay" step="0.001" min="0.8" max="0.9999"></label>
+      <label>Lote (batch) <input type="number" name="batch" min="8" max="128"></label>
+      <label>Sinc. rede-alvo <input type="number" name="target_sync" min="10"></label>
+      {% if mode == 'classical' %}
+        <label>Neurônios ocultos <input type="number" name="hidden" min="8" max="256"></label>
+      {% else %}
+        <label>Camadas do circuito <input type="number" name="layers" min="1" max="8"></label>
+      {% endif %}
+      <label>Semente <input type="number" name="seed" placeholder="aleatória"></label>
+    </div>
+    <div class="actions">
+      <button class="btn primary" data-action="start">▶ Treinar</button>
+      <button class="btn" data-action="stop" disabled>■ Parar</button>
+      <button class="btn ghost" data-action="reset">↺ Padrões</button>
+    </div>
+    <div class="progress"><div class="bar"></div></div>
+    <p class="status" aria-live="polite">Pronto para treinar.</p>
+  </aside>
+
+  <section class="content">
+    <div class="kpis">
+      <div class="kpi"><span>Episódio</span><strong data-kpi="episode">–</strong></div>
+      <div class="kpi"><span>Média móvel (20 ep.)</span><strong data-kpi="avg">–</strong></div>
+      <div class="kpi"><span>Melhor média</span><strong data-kpi="best">–</strong></div>
+      <div class="kpi"><span>ε atual</span><strong data-kpi="eps">–</strong></div>
+      <div class="kpi"><span>Parâmetros treináveis</span><strong data-kpi="params">–</strong></div>
+      <div class="kpi"><span>Tempo</span><strong data-kpi="time">–</strong></div>
+    </div>
+
+    <div class="card chart-card wide">
+      <h4>Recompensa por episódio</h4>
+      <div class="chart-box tall"><canvas data-chart="reward"></canvas></div>
+    </div>
+    <div class="row2">
+      <div class="card chart-card">
+        <h4>Perda TD (Huber) média por episódio</h4>
+        <div class="chart-box"><canvas data-chart="loss"></canvas></div>
+      </div>
+      <div class="card chart-card">
+        <h4>Exploração ε</h4>
+        <div class="chart-box"><canvas data-chart="eps"></canvas></div>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="card">
+        <div class="card-head">
+          <h4>Política aprendida</h4>
+          <button class="btn small" data-action="policy" disabled>Avaliar política</button>
+        </div>
+        <div class="viz" data-viz="policy"><p class="hint">Treine o agente e clique em <em>Avaliar política</em>.</p></div>
+      </div>
+      {% if mode == 'quantum' %}
+      <div class="card">
+        <div class="card-head">
+          <h4>Estado quântico |ψ(s)⟩</h4>
+          <label class="inline">estado s <input type="number" data-input="sv-state" min="0" max="15" value="0"></label>
+        </div>
+        <div class="chart-box"><canvas data-chart="sv"></canvas></div>
+        <p class="hint" data-sv-note>Probabilidades |amplitude|² das 16 bases do circuito treinado.</p>
+      </div>
+      {% else %}
+      <div class="card explain">
+        <h4>Como funciona (clássico)</h4>
+        <ol>
+          <li><strong>Observa</strong> o estado e escolhe a ação (aleatória com prob. ε).</li>
+          <li><strong>Armazena</strong> a transição (s, a, r, s′) na memória de replay.</li>
+          <li><strong>Amostra</strong> um lote aleatório e calcula o alvo TD com a rede-alvo.</li>
+          <li><strong>Retropropaga</strong> a perda de Huber e atualiza os pesos com Adam.</li>
+          <li><strong>Sincroniza</strong> a rede-alvo a cada N passos para estabilizar.</li>
+        </ol>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if mode == 'quantum' %}
+    <div class="card wide">
+      <h4>Circuito variacional (ansatz)</h4>
+      <div class="circuit" data-viz="circuit"></div>
+      <p class="hint">Cada camada: rotações RX·RY·RZ treináveis em cada qubit + anel de CNOTs (emaranhamento).
+        Q(s,a) = w<sub>a</sub>·⟨Z<sub>a</sub>⟩ + b<sub>a</sub>. Com <em>data re-uploading</em>, o estado é reinserido a cada camada.</p>
+    </div>
+    {% endif %}
+  </section>
+</main>
+{% endfor %}
+
+<footer class="footer">
+  <p>Deep Q-Network · Clássica &amp; Quântica — desenvolvido por <a href="{{ c.linkedin }}" target="_blank" rel="noopener">Pedro Paulo Ribeiro</a>
+    · <a href="{{ c.site }}" target="_blank" rel="noopener">{{ c.site_label }}</a>
+    · Python, NumPy, Flask &amp; Chart.js</p>
+</footer>
+
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
